@@ -139,7 +139,6 @@ public class Number implements Comparable<Number> {
         Node pointer = this.tail;
         while (pointer != null) {
             number.append(pointer.digit);
-            System.out.println("Tostring: " + this.length + " " + pointer.digit);
             pointer = pointer.prev;
         }
         return number.toString();
@@ -352,7 +351,7 @@ public class Number implements Comparable<Number> {
      */
     private String trimLeadingZeros(String number) {
         int newStartIndex = 0;
-        while (digitAt(number, newStartIndex) == 0)
+        while (newStartIndex < number.length() && digitAt(number, newStartIndex) == 0)
             newStartIndex++;
 
         String newString = number.substring(newStartIndex);
