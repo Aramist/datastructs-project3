@@ -1,19 +1,61 @@
 package project3;
 
 
+/**
+ * Represents a positive decimal integer of arbitrary length as a linked list and provides methods
+ * for performing common arithmetic operations on it.
+ *
+ * @author Aramis Tanelus
+ * @version final
+ */
 public class Number implements Comparable<Number> {
 
+    /**
+     * Represents a single digit in the Linked-list representation of the integer.
+     */
     private class Node {
         public int digit;
         public Node next;
+        public Node prev;
         
         public Node(int digit) {
             this.digit = digit;
             this.next = null;
+            this.prev = null;
         }
 
-        public boolean hasNext() {
-            return this.next != null;
+        public String toString(){
+            String result = "" + this.digit;
+            Node pointer = this;
+            while (pointer.next != null){
+                pointer = pointer.next;
+                result += "->" + pointer.digit;
+            }
+            return result;
+        }
+
+        /**
+         * Appends the given node to this one.
+         * If there is already a node ahead of this one, replaces it
+         * If the given node is null, makes this node a tail.
+         */
+        public void appendNode(Node node) {
+            if (node != null) {
+                node.prev = this;
+            }
+            this.next = node;
+        }
+
+        /**
+         * Prepends the given node to this one.
+         * If there is already a node behind this one, replaces it
+         * If the given node is null, makes this node a head.
+         */
+        public void prependNode(Node node) {
+            if (node != null) {
+                node.next = this;
+            }
+            this.prev = node;
         }
     }
 
@@ -28,7 +70,7 @@ public class Number implements Comparable<Number> {
      */
     public Number(String number) throws IllegalArgumentException{
         // The runner class seems prepared to catch an IllegalArgumentException, use it here for null/empty/non-digit checks
-        if ( number == null || number.equals("") || isAllDigits(number) ) {
+        if ( number == null || number.equals("") || !isAllDigits(number) ) {
             throw new IllegalArgumentException("Invalid number provided: " + number);
         }
 
@@ -42,9 +84,9 @@ public class Number implements Comparable<Number> {
         Node pointer = this.head;  // A variable for iteration
 
         // In the event number has length 1, the loop will not run
-        for(int i = number.length() - 2; i >= 0; i++) {
+        for(int i = number.length() - 2; i >= 0; i--) {
             Node newNode = new Node(digitAt(number, i));
-            pointer.next = newNode;  // Extend the list
+            pointer.appendNode(newNode);  // Extend the list
             pointer = newNode;  // Update the iteration variable
             curLength += 1;
         }
@@ -52,7 +94,7 @@ public class Number implements Comparable<Number> {
         this.tail = pointer;  // Make the most recently instantiated node the tail
         this.length = curLength;
 
-        // At this point the list is created: 0091020 would become HEAD -> 0 -> 2 -> 0 -> 1 -> 9 <- TAIL
+        // At this point the list is created: 0091020 would become HEAD -> 0 <-> 2 <-> 0 <-> 1 <-> 9 <- TAIL
     }
 
     /**
@@ -93,15 +135,68 @@ public class Number implements Comparable<Number> {
      * Returns a string representation of this Number.
      */
     public String toString() {
-        String number = "";
-        Node pointer = this.head;
+        StringBuilder number = new StringBuilder(this.length);
+        Node pointer = this.tail;
         while (pointer != null) {
-            number = pointer.digit + number;
-            pointer = pointer.next;
+            number.append(pointer.digit);
+            System.out.println("Tostring: " + this.length + " " + pointer.digit);
+            pointer = pointer.prev;
         }
-        return number;
+        return number.toString();
     }
 
+
+    /**
+     * Compares the this Number with other.
+     *
+     * @param other Number to compare to
+     * @return 1 if this number is greater, 0 if equal, -1 if less
+     */
+    public int compareTo(Number other) {
+        // Check length first, longer numbers are guaranteed to be greater since leading zeros 
+        // are clipped
+        if (length < other.length)
+            return -1;
+        else if (length > other.length)
+            return 1;
+
+        // Starting from the most significant digit (tail) perform a digit-by-digit comparison
+        Node thisPointer = this.tail;
+        Node otherPointer = other.tail;
+        // No need to null check both, they have the same length
+        while (thisPointer != null && thisPointer.digit == otherPointer.digit) {
+            thisPointer = thisPointer.prev;
+            otherPointer = otherPointer.prev;
+        }
+
+        if (thisPointer == null)  // They are equal
+            return 0;
+        else if(thisPointer.digit < otherPointer.digit)  // The other is greater
+            return -1;
+        else
+            return 1;
+    }
+
+
+    /**
+     * Determines whether the objects are equal in value.
+     *
+     * @param obj The object to compare to
+     */
+    public boolean equals(Object obj) {
+        // Alias case: 
+        if (this == obj)
+            return true;
+
+        // Check other type
+        if ( !(obj instanceof Number) )
+            return false;
+
+        // Safely cast to number and delegate comparison work to compareTo
+        Number other = (Number) obj;
+        return compareTo(other) == 0;
+    }
+            
 
     /**
      * Returns the sum of this number and other.
@@ -109,7 +204,7 @@ public class Number implements Comparable<Number> {
      * @param other The other addend.
      */
     public Number add(Number other) {
-        return Number(add(head, other.head, 0));
+        return new Number(add(this.head, other.head, 0));
     }
 
     /**
@@ -125,7 +220,8 @@ public class Number implements Comparable<Number> {
         // Base case 1: both nodes are null and the calculation is done. 
         // Returns the carry digit or null to avoid leading zeros
         if (left == null && right == null) {
-            return (carry == 0) ? null : new Node(carry);
+            Node output = (carry == 0) ? null : new Node(carry);
+            return output;
         } else if (left == null) {
             // Retursive case 1: Only one node is null, continue adding whatevery carry might be remaining
             // to the longer digit
@@ -133,24 +229,25 @@ public class Number implements Comparable<Number> {
             int newCarry = newDigit / 10;
             newDigit = newDigit % 10;
             Node newNode = new Node(newDigit);
-            newNode.next = add(null, right.next, newCarry);
+            newNode.appendNode(add(null, right.next, newCarry));
             return newNode;
         } else if (right == null) {
             // Recursive case 1 again:
-            int newDigit = left.digit = carry;
+            int newDigit = left.digit + carry;
             int newCarry = newDigit / 10;
             newDigit = newDigit % 10;
             Node newNode = new Node(newDigit);
-            newNode.next = add(left.next, null, newCarry);
+            newNode.appendNode(add(left.next, null, newCarry));
+            return newNode;
+        } else {
+            // Recursive case 2: Both nodes are non-null, include both the left and right digits in the sum
+            int newDigit = left.digit + right.digit + carry;
+            int newCarry = newDigit / 10;
+            newDigit = newDigit % 10;
+            Node newNode = new Node(newDigit);
+            newNode.appendNode(add(left.next, right.next, newCarry));
             return newNode;
         }
-        // Recursive case 2: Both nodes are non-null, include both the left and right digits in the sum
-        int newDigit = left.digit + right.digit + carry;
-        int newCarry = newDigit / 10;
-        newDigit = newDigit % 10;
-        Node newNode = new Node(newDigit);
-        newNode.next = add(left.next, right.next, newCarry);
-        return newNode;
     }
 
 
@@ -203,7 +300,7 @@ public class Number implements Comparable<Number> {
      * @param digit The digit to multiply by. Assumed to be in [0, 9]
      * @param carry A number carried from previous multiplication that is added to the result.
      */
-    private Number multiplyByDigit(Node node, int digit, int carry) {
+    private Node multiplyByDigit(Node node, int digit, int carry) {
         // If the node is null and carry is 0, the multiplication is already done, null should be returned
         if (node == null && carry == 0)
             return null;
@@ -221,7 +318,7 @@ public class Number implements Comparable<Number> {
         // Product now represents the corresponding digit in the new number, carry gets passed on to the
         // next digit's multiplication
         Node newNode = new Node(product);
-        newNode.next = multiplyByDigit(node.next, digit, newCarry);
+        newNode.appendNode(multiplyByDigit(node.next, digit, newCarry));
         return newNode;
     }
 
@@ -234,7 +331,7 @@ public class Number implements Comparable<Number> {
      * @return True if all characters in number are in [0-9] else false
      */
     private boolean isAllDigits(String number) {
-        for (Char c : number.toCharArray)
+        for (char c : number.toCharArray())
             if (c < '0' || c > '9')
                 return false;
         return true;
@@ -272,9 +369,9 @@ public class Number implements Comparable<Number> {
      * @param power The power of ten to multiply by. Assumed to be non-negative.
      */
     private void multiplyByPowTen(int power) {
-        for(int i = 0; i < power, i++) {
+        for(int i = 0; i < power; i++) {
             Node newZero = new Node(0);
-            newZero.next = this.head;
+            this.head.prependNode(newZero);
             this.head = newZero;
         }
     }
