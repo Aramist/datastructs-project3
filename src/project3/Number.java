@@ -41,10 +41,15 @@ public class Number implements Comparable<Number> {
 
     /**
      * Creates a number object with value represented by the string argument number.
+     *
+     * @throws IllegalArgumentException when the input is null, empty, or not entirely composed of digit characters
      */
-    public Number(String number) throws IllegalArgumentException{
+    public Number(String number) throws IllegalArgumentException, NullPointerException{
         // The runner class seems prepared to catch an IllegalArgumentException, use it here for null/empty/non-digit checks
-        if ( number == null || number.equals("") || !isAllDigits(number) ) {
+        if ( number == null ) {
+            throw new NullPointerException("The input number cannot be null.");
+        }
+        if ( number.equals("") || !isAllDigits(number) ) {
             throw new IllegalArgumentException("Invalid number provided: " + number);
         }
 
@@ -102,9 +107,14 @@ public class Number implements Comparable<Number> {
      * Compares the this Number with other.
      *
      * @param other Number to compare to
+     *
+     * @throws NullPointerException when the object of comparison is null
+     *
      * @return 1 if this number is greater, 0 if equal, -1 if less
      */
-    public int compareTo(Number other) {
+    public int compareTo(Number other) throws NullPointerException{
+        if (other == null)
+            throw new NullPointerException("Cannot compare to a null reference.");
         // Check length first, longer numbers are guaranteed to be greater since leading zeros 
         // are clipped
         if (length < other.length)
@@ -154,8 +164,11 @@ public class Number implements Comparable<Number> {
      * Returns the sum of this number and other.
      *
      * @param other The other addend.
+     * @throws NullPointerEXception if the addend is null
      */
-    public Number add(Number other) {
+    public Number add(Number other) throws NullPointerException{
+        if (other == null)
+            throw new NullPointerException("The addend must not be null.");
         return new Number(add(this.head, other.head, 0));
     }
 
@@ -220,10 +233,14 @@ public class Number implements Comparable<Number> {
      * @param other The other multiplicand
      *
      * @return The product as a Number
+     * @throws NullPointerException when the multiplicand is null
      */
-    public Number multiply(Number other) {
+    public Number multiply(Number other) throws NullPointerException{
         // Consider the multiplication as a series of multiplications between this number and every
         // individual digit of the other number, shifted by some power of ten
+        //
+        if (other == null)
+            throw new NullPointerException("The multiplicand must not be null.");
         
         Number result = new Number("0");
         int powerOfTen = 0;
@@ -379,6 +396,7 @@ public class Number implements Comparable<Number> {
             newHead = newHead.prev;
         }
         this.head = newHead;
+        this.length += additionalLength;
     }
 
 
