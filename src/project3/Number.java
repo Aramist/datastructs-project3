@@ -24,38 +24,12 @@ public class Number implements Comparable<Number> {
             this.prev = null;
         }
 
+        /**
+         * Returns a string representation of this node.
+         */
         public String toString(){
             String result = "" + this.digit;
-            Node pointer = this;
-            while (pointer.next != null){
-                pointer = pointer.next;
-                result += "->" + pointer.digit;
-            }
             return result;
-        }
-
-        /**
-         * Appends the given node to this one.
-         * If there is already a node ahead of this one, replaces it
-         * If the given node is null, makes this node a tail.
-         */
-        public void appendNode(Node node) {
-            if (node != null) {
-                node.prev = this;
-            }
-            this.next = node;
-        }
-
-        /**
-         * Prepends the given node to this one.
-         * If there is already a node behind this one, replaces it
-         * If the given node is null, makes this node a head.
-         */
-        public void prependNode(Node node) {
-            if (node != null) {
-                node.next = this;
-            }
-            this.prev = node;
         }
     }
 
@@ -77,22 +51,15 @@ public class Number implements Comparable<Number> {
         // Throw away any leading zeros in the number, as they can throw off digit-length based comparisons
         number = trimLeadingZeros(number);
 
-        // Starts from the right side of the string, as the head of the linked list holds the
-        // least significant digit
-        this.head = new Node(digitAt(number, number.length() - 1));
-        int curLength = 1;
-        Node pointer = this.head;  // A variable for iteration
+        // We can start from the left side of the string (most-significant digits) and prepend each digit
+        // from left-to-right to end up with the least significant digit at the head
+        appendDigit(digitAt(number, 0));
 
-        // In the event number has length 1, the loop will not run
-        for(int i = number.length() - 2; i >= 0; i--) {
-            Node newNode = new Node(digitAt(number, i));
-            pointer.appendNode(newNode);  // Extend the list
-            pointer = newNode;  // Update the iteration variable
-            curLength += 1;
-        }
+        for(int i = 1; i < number.length(); i++)
+            this.prependDigit(digitAt(number, i));
 
-        this.tail = pointer;  // Make the most recently instantiated node the tail
-        this.length = curLength;
+        // The tail variable's assignment was already handled by the appendDigit method
+        // Length calculation is also governed by that method
 
         // At this point the list is created: 0091020 would become HEAD -> 0 <-> 2 <-> 0 <-> 1 <-> 9 <- TAIL
     }
@@ -103,23 +70,9 @@ public class Number implements Comparable<Number> {
      * @param node The head of the linked list representing this number.
      */
     private Number(Node node) {
-        // Case 1: empty list, make it 0
-        if (node == null) {
-            this.head = new Node(0);
-            this.tail = this.head;
-            this.length = 1;
-            return;
-        }
-
-        this.head = node;
-        Node curTail = node;
-        int curLength = 1;
-        while (curTail.next != null) {
-            curLength++;
-            curTail = curTail.next;
-        }
-        this.length = curLength;
-        this.tail = curTail;
+        // All of the functionality of this constructor has already been implemented
+        // in appendNode and prependNode
+        this.appendNode(node);
     }
 
 
@@ -170,7 +123,7 @@ public class Number implements Comparable<Number> {
 
         if (thisPointer == null)  // They are equal
             return 0;
-        else if(thisPointer.digit < otherPointer.digit)  // The other is greater
+        else if (thisPointer.digit < otherPointer.digit)  // The other is greater
             return -1;
         else
             return 1;
@@ -227,25 +180,37 @@ public class Number implements Comparable<Number> {
             int newDigit = right.digit + carry;
             int newCarry = newDigit / 10;
             newDigit = newDigit % 10;
-            Node newNode = new Node(newDigit);
-            newNode.appendNode(add(null, right.next, newCarry));
-            return newNode;
+
+            Node currentDigit = new Node(newDigit);
+            Node nextDigit = add(null, right.next, newCarry);  // The recursive call
+            currentDigit.next = nextDigit;
+            if (nextDigit != null)  // The underlying linked list is doubly-linked so this is necessary
+                nextDigit.prev = currentDigit;
+            return currentDigit;
         } else if (right == null) {
             // Recursive case 1 again:
             int newDigit = left.digit + carry;
             int newCarry = newDigit / 10;
             newDigit = newDigit % 10;
-            Node newNode = new Node(newDigit);
-            newNode.appendNode(add(left.next, null, newCarry));
-            return newNode;
+
+            Node currentDigit = new Node(newDigit);
+            Node nextDigit = add(left.next, null, newCarry);
+            currentDigit.next = nextDigit;
+            if (nextDigit != null)
+                nextDigit.prev = currentDigit;
+            return currentDigit;
         } else {
             // Recursive case 2: Both nodes are non-null, include both the left and right digits in the sum
             int newDigit = left.digit + right.digit + carry;
             int newCarry = newDigit / 10;
             newDigit = newDigit % 10;
-            Node newNode = new Node(newDigit);
-            newNode.appendNode(add(left.next, right.next, newCarry));
-            return newNode;
+
+            Node currentDigit = new Node(newDigit);
+            Node nextDigit = add(left.next, right.next, newCarry);
+            currentDigit.next = nextDigit;
+            if (nextDigit != null)
+                nextDigit.prev = currentDigit;
+            return currentDigit;
         }
     }
 
@@ -316,9 +281,13 @@ public class Number implements Comparable<Number> {
         }
         // Product now represents the corresponding digit in the new number, carry gets passed on to the
         // next digit's multiplication
-        Node newNode = new Node(product);
-        newNode.appendNode(multiplyByDigit(node.next, digit, newCarry));
-        return newNode;
+        Node currentDigit = new Node(product);
+        Node nextDigit = multiplyByDigit(node.next, digit, newCarry);
+        currentDigit.next = nextDigit;
+        if (nextDigit != null)
+            nextDigit.prev = currentDigit;
+
+        return currentDigit;
     }
 
 
@@ -369,10 +338,88 @@ public class Number implements Comparable<Number> {
      */
     private void multiplyByPowTen(int power) {
         for(int i = 0; i < power; i++) {
-            Node newZero = new Node(0);
-            this.head.prependNode(newZero);
-            this.head = newZero;
+            this.prependDigit(0);
         }
+    }
+
+
+    /**
+     * Helper function for inserting a digit at the left-most (least significant) position of the number.
+     * 
+     * @param digit The digit to insert
+     */
+    private void prependDigit(int digit){
+        this.prependNode(new Node(digit));
+    }
+
+    
+    /**
+     * Helper function for inserting a node and its prior nodes at the left-most (least significant) position of the number.
+     * 
+     * @param node The node to insert
+     */
+    private void prependNode(Node node){
+        int additionalLength = 1;
+        // Null check just in case
+        if (node == null)
+            return;
+
+        if (this.head == null) {
+            // If the list is empty, the node becomes the new tail
+            this.tail = node;
+            node.next = null;
+        } else {
+            this.head.prev = node;
+            node.next = this.head;
+        }
+
+        Node newHead = node;
+        while (newHead.prev != null) {
+            additionalLength++;
+            newHead = newHead.prev;
+        }
+        this.head = newHead;
+    }
+
+
+    /**
+     * Helper function for inserting a digit at the right-most (most significant) position of the number.
+     * 
+     * @param digit The digit to insert
+     */
+    private void appendDigit(int digit) {
+        this.appendNode(new Node(digit));
+    }
+
+
+    /**
+     * Helper function for inserting a node and its subsequent nodes at the right-most (most significant) position of the number.
+     * 
+     * @param node The node to insert
+     */
+    private void appendNode(Node node) {
+        int additionalLength = 1;
+        // Null check just in case
+        if (node == null)
+            return;
+
+        if (this.tail == null) {
+            // If the list is empty, the node becomes the new head
+            this.head = node;
+            node.prev = null;
+        } else {
+            this.tail.next = node;
+            node.prev = this.tail;
+        }
+        
+        // Calculate the new tail and how much longer the number is
+        Node newTail = node;
+        while (newTail.next != null){
+            additionalLength++;
+            newTail = newTail.next;
+        }
+        this.tail = newTail;
+        this.length += additionalLength;
     }
 
 }
